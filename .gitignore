@@ -1,0 +1,5 @@
+*.pro.*
+build-*
+build*
+release*
+debug*
