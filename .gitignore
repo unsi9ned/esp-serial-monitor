@@ -1,5 +1,5 @@
 *.pro.*
-build-*
-build*
-release*
-debug*
+build-*/
+build*/
+release*/
+debug*/
