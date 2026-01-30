@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>733</width>
+    <width>742</width>
     <height>565</height>
    </rect>
   </property>
@@ -193,13 +193,13 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>70</width>
+          <width>80</width>
           <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>70</width>
+          <width>80</width>
           <height>16777215</height>
          </size>
         </property>
@@ -228,13 +228,13 @@
        <widget class="QComboBox" name="cbxIDE">
         <property name="minimumSize">
          <size>
-          <width>75</width>
+          <width>80</width>
           <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>75</width>
+          <width>80</width>
           <height>16777215</height>
          </size>
         </property>
@@ -251,6 +251,11 @@
         <item>
          <property name="text">
           <string>PlatformIO</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Merged BIN</string>
          </property>
         </item>
        </widget>
@@ -408,13 +413,13 @@
        <widget class="QComboBox" name="cbxSpiSize">
         <property name="minimumSize">
          <size>
-          <width>70</width>
+          <width>80</width>
           <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>70</width>
+          <width>80</width>
           <height>16777215</height>
          </size>
         </property>
@@ -583,13 +588,13 @@
        <widget class="QCheckBox" name="checkBoxRts">
         <property name="minimumSize">
          <size>
-          <width>70</width>
+          <width>80</width>
           <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>70</width>
+          <width>80</width>
           <height>16777215</height>
          </size>
         </property>
