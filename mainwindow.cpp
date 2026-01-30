@@ -108,6 +108,13 @@ MainWindow::MainWindow(QWidget *parent) :
             SIGNAL(statusChanged(QString)),
             ui->statusBar,
             SLOT(showMessage(QString)));
+
+    //
+    // Активация поля ввода адреса смещения
+    //
+    connect(ui->cbxIDE,
+            SIGNAL(activated(int)),
+            SLOT(changeOffsetSpinboxState(int)));
 }
 
 MainWindow::~MainWindow()
@@ -165,7 +172,7 @@ void MainWindow::loadSettings()
         this->settings.close();
     }
 
-    for(int i = appSettings.length(); i < 9; i++)
+    for(int i = appSettings.length(); i < 10; i++)
     {
         appSettings.append("");
     }
@@ -179,6 +186,8 @@ void MainWindow::loadSettings()
     QString spiMode = appSettings.at(6);
     QString spiSpeed = appSettings.at(7);
     QString spiSize = appSettings.at(8);
+    QString offsetStr = appSettings.at(9);
+    quint32 offsetAddr = 0x0;
 
     portSpeed = portSpeed.isEmpty() ? "115200" : portSpeed;
     chipName = chipName.isEmpty() ? "ESP32" : chipName;
@@ -189,7 +198,10 @@ void MainWindow::loadSettings()
     spiSpeed = spiSpeed.isEmpty() ? "80MHz" : spiSpeed;
     spiSize = spiSize.isEmpty() ? "4MB" : spiSize;
 
+    offsetAddr = offsetStr.isEmpty() ? 0x0 : offsetStr.toUInt(nullptr, 16);
+
     ui->lineEditFirmware->setText(appSettings.at(2));
+    ui->spinBoxOffset->setEnabled(ideName.toLower() == "manual");
 
     for (int i = 0; i < ui->cbxChip->count(); i++)
     {
@@ -262,6 +274,8 @@ void MainWindow::loadSettings()
             break;
         }
     }
+
+    ui->spinBoxOffset->setValue(offsetAddr);
 }
 
 //------------------------------------------------------------------------------
@@ -288,6 +302,8 @@ void MainWindow::saveSettings()
         this->settings.write(ui->cbxSpiSpeed->currentText().toLatin1().constData());
         this->settings.write("\r\n");
         this->settings.write(ui->cbxSpiSize->currentText().toLatin1().constData());
+        this->settings.write("\r\n");
+        this->settings.write(QString("0x%1").arg(ui->spinBoxOffset->value(), 0, 16).toLatin1().constData());
         this->settings.write("\r\n");
         this->settings.close();
     }
@@ -1037,7 +1053,8 @@ void MainWindow::on_pushButtonBurn_clicked()
 
 
         if(ui->cbxChip->currentText().toLower() == "esp32" &&
-           ui->cbxIDE->currentText().toLower() != "merged bin")
+           ui->cbxIDE->currentText().toLower() != "merged bin" &&
+           ui->cbxIDE->currentText().toLower() != "manual")
         {
             /*
             esptool.exe
@@ -1157,7 +1174,8 @@ void MainWindow::on_pushButtonBurn_clicked()
         // будет выглядеть проще
         //
         else if(ui->cbxChip->currentText().toLower() == "esp32" &&
-                ui->cbxIDE->currentText().toLower() == "merged bin")
+                (ui->cbxIDE->currentText().toLower() == "merged bin" ||
+                 ui->cbxIDE->currentText().toLower() == "manual"))
         {
             //
             // Начинаем формировани команду для программирования
@@ -1178,7 +1196,12 @@ void MainWindow::on_pushButtonBurn_clicked()
             args << "--flash_freq" << flashFreq;
             args << "--flash_size" << flashSize;
 
-            args << QString("0x%1").arg(0x0, 0, 16) << firmwareFile;
+            if(ui->cbxIDE->currentText().toLower() != "manual")
+                args << QString("0x%1").arg(0x0, 0, 16) << firmwareFile;
+            else
+            {
+                args << QString("0x%1").arg(ui->spinBoxOffset->value(), 0, 16) << firmwareFile;
+            }
         }
         //
         // Если программируем ESP8266, то среда программирование Arduino, Sloeber
@@ -1200,7 +1223,8 @@ void MainWindow::on_pushButtonBurn_clicked()
         //
         ui->plainTextEdit->clear();
 
-        if(ui->cbxIDE->currentText().toLower() != "merged bin")
+        if(ui->cbxIDE->currentText().toLower() != "merged bin" &&
+           ui->cbxIDE->currentText().toLower() != "manual")
         {
             QList<PartitionInfo> partitionTable = this->readPartitionTable();
 
@@ -1406,5 +1430,22 @@ void MainWindow::on_pushButtonErase_clicked()
 
             emit statusChanged("Flash erase process completed");
         });
+    }
+}
+
+//------------------------------------------------------------------------------
+// Активация поля ввода адреса при выборе ручного режима
+//------------------------------------------------------------------------------
+void MainWindow::changeOffsetSpinboxState(int i)
+{
+    QString ide = ui->cbxIDE->itemText(i);
+
+    if(ide.toLower() == "manual")
+    {
+        ui->spinBoxOffset->setEnabled(true);
+    }
+    else
+    {
+        ui->spinBoxOffset->setEnabled(false);
     }
 }
