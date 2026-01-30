@@ -87,6 +87,8 @@ private slots:
 
     void on_pushButtonErase_clicked();
 
+    void changeOffsetSpinboxState(int i);
+
 signals:
     void statusChanged(QString status);
 

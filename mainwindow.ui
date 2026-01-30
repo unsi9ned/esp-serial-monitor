@@ -258,6 +258,11 @@
           <string>Merged BIN</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>Manual</string>
+         </property>
+        </item>
        </widget>
       </item>
       <item row="0" column="0">
@@ -349,44 +354,6 @@
         </property>
         <property name="text">
          <string>Flash Size:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="7">
-       <widget class="QPushButton" name="pushButtonOpen">
-        <property name="minimumSize">
-         <size>
-          <width>75</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>75</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Connect</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="8">
-       <widget class="QPushButton" name="pushButtonAbout">
-        <property name="minimumSize">
-         <size>
-          <width>75</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>75</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>About</string>
         </property>
        </widget>
       </item>
@@ -558,7 +525,32 @@
         </item>
        </widget>
       </item>
-      <item row="1" column="6">
+      <item row="0" column="5">
+       <widget class="QCheckBox" name="checkBoxRts">
+        <property name="minimumSize">
+         <size>
+          <width>80</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>80</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>RTS</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="9">
+       <widget class="QWidget" name="widget" native="true"/>
+      </item>
+      <item row="0" column="9">
+       <widget class="QWidget" name="widget_2" native="true"/>
+      </item>
+      <item row="0" column="6">
        <widget class="QComboBox" name="cbxChip">
         <property name="minimumSize">
          <size>
@@ -584,30 +576,81 @@
         </item>
        </widget>
       </item>
-      <item row="0" column="5">
-       <widget class="QCheckBox" name="checkBoxRts">
+      <item row="0" column="7">
+       <widget class="QPushButton" name="pushButtonOpen">
         <property name="minimumSize">
          <size>
-          <width>80</width>
+          <width>75</width>
           <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>80</width>
+          <width>75</width>
           <height>16777215</height>
          </size>
         </property>
         <property name="text">
-         <string>RTS</string>
+         <string>Connect</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="9">
-       <widget class="QWidget" name="widget" native="true"/>
+      <item row="0" column="8">
+       <widget class="QPushButton" name="pushButtonAbout">
+        <property name="minimumSize">
+         <size>
+          <width>75</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>75</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>About</string>
+        </property>
+       </widget>
       </item>
-      <item row="0" column="9">
-       <widget class="QWidget" name="widget_2" native="true"/>
+      <item row="1" column="6">
+       <widget class="QLabel" name="label_6">
+        <property name="minimumSize">
+         <size>
+          <width>75</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>75</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string> Offset (Hex):</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="7">
+       <widget class="QSpinBox" name="spinBoxOffset">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="prefix">
+         <string>0x</string>
+        </property>
+        <property name="maximum">
+         <number>134217728</number>
+        </property>
+        <property name="displayIntegerBase">
+         <number>16</number>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
