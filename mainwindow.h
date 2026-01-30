@@ -44,6 +44,17 @@ private:
                         uint32_t &factoryAddr,
                         uint32_t &secondBootloderAddr);
 
+    void updateUiFlashMode(const QString &flashMode,
+                           const QString &flashFreq,
+                           const QString &flashSize);
+
+    void getFlashMode(QString &flashMode,
+                      QString &flashFreq,
+                      QString &flashSize);
+
+    void getFirmwareLocation(QString &firmwareDir,
+                             QString &baseName);
+
     void printPartitionTable(const QList<PartitionInfo> &partitionTable,
                              uint32_t bootloaderAddr,
                              qint64 bootloaderSize,
