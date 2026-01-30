@@ -467,12 +467,17 @@ QList<PartitionInfo> MainWindow::readPartitionTable()
     baseName = baseName.mid(slashPos, extensionBegin - slashPos);
 
     //
-    // Если проект собран в Espressif IDE, то CSV-файла таблицы разделов нет
+    // Если проект собран в Espressif IDE или PlatformIO, то CSV-файла таблицы разделов нет
     // и нам необходимо преобразовать таблицу разделов из BIN в CSV
     //
-    if(ui->cbxIDE->currentText().toLower() == "espressif" && QFile::exists(Paths::esp32part()))
+    if((ui->cbxIDE->currentText().toLower() == "espressif" ||
+        ui->cbxIDE->currentText().toLower() == "platformio") && QFile::exists(Paths::esp32part()))
     {
-        partitionFile = firmwareDir + Paths::espressifPartitionBin();
+        if(ui->cbxIDE->currentText().toLower() == "platformio")
+            partitionFile = firmwareDir + Paths::platformioPartitionBin();
+        else
+            partitionFile = firmwareDir + Paths::espressifPartitionBin();
+
         partitionFileCsv = Paths::tempPartitionTableCsv();
         args << partitionFile << partitionFileCsv;
 
@@ -919,6 +924,11 @@ void MainWindow::on_pushButtonBurn_clicked()
                 bootloaderFile = firmwareDir + baseName + ".bootloader.bin";
                 partitionFile = firmwareDir + baseName + ".partitions.bin";
                 bootApp0File = Paths::arduinoSecondaryBootloader();
+            }
+            else if(ui->cbxIDE->currentText().toLower() == "platformio")
+            {
+                bootloaderFile = firmwareDir + Paths::platformioBootloader();
+                partitionFile = firmwareDir + Paths::platformioPartitionBin();
             }
             else
             {

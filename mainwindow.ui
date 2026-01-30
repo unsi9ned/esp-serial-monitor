@@ -253,6 +253,11 @@
           <string>Arduino</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>PlatformIO</string>
+         </property>
+        </item>
        </widget>
       </item>
       <item>
