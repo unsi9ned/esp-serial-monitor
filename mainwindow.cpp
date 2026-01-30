@@ -1026,7 +1026,18 @@ void MainWindow::on_pushButtonBurn_clicked()
         qint64 bootloaderSize = 0;
         qint64 partTableSize = 0;
 
-        if(ui->cbxChip->currentText().toLower() == "esp32")
+        QString firmwareFile = ui->lineEditFirmware->text();
+        QString baseName = ui->lineEditFirmware->text();
+        QString firmwareDir;
+
+        //
+        // Сначала определяем каталог сборки проекта и BIN основной программы
+        //
+        this->getFirmwareLocation(firmwareDir, baseName);
+
+
+        if(ui->cbxChip->currentText().toLower() == "esp32" &&
+           ui->cbxIDE->currentText().toLower() != "merged bin")
         {
             /*
             esptool.exe
@@ -1045,25 +1056,9 @@ void MainWindow::on_pushButtonBurn_clicked()
                     0xe000 boot_app0.bin
                     0x10000 TestESP32.bin
             */
-            QString baseName = ui->lineEditFirmware->text();
-            QString firmwareDir;
             QString bootloaderFile;
             QString partitionFile;
             QString bootApp0File;
-            QString firmwareFile = ui->lineEditFirmware->text();
-
-            //
-            // Сначала определяем каталог сборки проекта и BIN основной программы
-            //
-            int slashPos = baseName.lastIndexOf(QChar('/'));
-            int extensionBegin = baseName.lastIndexOf(QChar('.'));
-
-            slashPos = slashPos == -1 ? baseName.lastIndexOf(QChar('\\')) : slashPos;
-            slashPos = slashPos == -1 ? 0 : slashPos + 1;
-            extensionBegin = extensionBegin <= slashPos ? baseName.length() : extensionBegin;
-
-            firmwareDir = baseName.mid(0, slashPos);
-            baseName = baseName.mid(slashPos, extensionBegin - slashPos);
 
             //
             // Далее зная имя файла основной программы формирует имена файлов
@@ -1157,6 +1152,35 @@ void MainWindow::on_pushButtonBurn_clicked()
             args << QString("0x%1").arg(factoryAddr, 0, 16) << firmwareFile;
         }
         //
+        // Merged BIN - это уже готовый файл прошивки, содержащий в себе
+        // все части. Фактически это дамп памяти. Потому команда прошивки
+        // будет выглядеть проще
+        //
+        else if(ui->cbxChip->currentText().toLower() == "esp32" &&
+                ui->cbxIDE->currentText().toLower() == "merged bin")
+        {
+            //
+            // Начинаем формировани команду для программирования
+            //
+            args << "--chip" << ui->cbxChip->currentText().toLower();
+            args << "--port" << ui->cbxPort->currentText();
+            args << "--baud" << ui->cbxFlashSpeed->currentText();
+            args << "--before" << "default_reset";
+            args << "--after" << "hard_reset";
+            args << "write_flash";
+            args << "-z";
+
+            this->getFlashMode(flashMode,
+                               flashFreq,
+                               flashSize);
+
+            args << "--flash_mode" << flashMode;
+            args << "--flash_freq" << flashFreq;
+            args << "--flash_size" << flashSize;
+
+            args << QString("0x%1").arg(0x0, 0, 16) << firmwareFile;
+        }
+        //
         // Если программируем ESP8266, то среда программирование Arduino, Sloeber
         // формируют один единственный BIN-файл и нет необходимости прошивать
         // фрагменты прошивки по отдельности
@@ -1175,13 +1199,17 @@ void MainWindow::on_pushButtonBurn_clicked()
         // Вывод таблицы разделов на печать
         //
         ui->plainTextEdit->clear();
-        QList<PartitionInfo> partitionTable = this->readPartitionTable();
 
-        this->printPartitionTable(partitionTable,
-                                  bootloaderAddr,
-                                  bootloaderSize,
-                                  partTableAddr,
-                                  partTableSize);
+        if(ui->cbxIDE->currentText().toLower() != "merged bin")
+        {
+            QList<PartitionInfo> partitionTable = this->readPartitionTable();
+
+            this->printPartitionTable(partitionTable,
+                                      bootloaderAddr,
+                                      bootloaderSize,
+                                      partTableAddr,
+                                      partTableSize);
+        }
 
         //
         // Сброс сигналов DTR, RTS
