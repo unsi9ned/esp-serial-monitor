@@ -20,6 +20,8 @@ private:
     static constexpr const char* ESPRESSIF_PRIMARY_BL = "bootloader/bootloader.bin";
     static constexpr const char* ESPRESSIF_PARTITION_BIN = "partition_table/partition-table.bin";
     static constexpr const char* ESPRESSIF_FLASH_ARGS = "flash_args";
+    static constexpr const char* PLATFORMIO_BOOTLOADER = "bootloader.bin";
+    static constexpr const char* PLATFORMIO_PARTITION_BIN = "partitions.bin";
 
 public:
     explicit Paths(QObject *parent = nullptr);
@@ -74,6 +76,16 @@ public:
     inline static QString arduinoPartitionTableCsv()
     {
         return ARDUINO_PARTITION_TABLE_CSV;
+    }
+
+    inline static QString platformioBootloader()
+    {
+        return PLATFORMIO_BOOTLOADER;
+    }
+
+    inline static QString platformioPartitionBin()
+    {
+        return PLATFORMIO_PARTITION_BIN;
     }
 
 signals:

@@ -16,6 +16,7 @@ env:
   MINGW_VERSION:  "win64_mingw81"
   MINGW_PATH:     "mingw81_64"
   TARGET_DIR:     "ESPSerialMonitor-Win64-Portable"
+  APP_NAME:       "ESPSerialMonitor"
 
 jobs:
   build:
@@ -87,22 +88,61 @@ jobs:
           echo Содержимое каталога сборки:
           dir /b ${{ env.TARGET_DIR }}
 
-      - name: (7) Zip build
+      - name: (7) Prepare release name
         run:  |
+            echo Time: %TIME%
+            echo Date: %DATE%
+            
+            :: Разделяем время и дату
+            for /f "tokens=1-3 delims=: " %%a in ("%TIME%") do (
+                set HH=%%a
+                set MM=%%b
+                set SS_AND_REST=%%c
+            )
+            
+            :: Теперь разбираем оставшуюся часть
+            for /f "tokens=1-4 delims=/. " %%a in ("%DATE%") do (
+                set DW=%%a
+                set MN=%%b
+                set DD=%%c
+                set YR=%%d
+            )
+            
+            :: Убираем ведущие пробелы у часов
+            set HH=%HH: =0%
+            
+            :: Создаем имя файла с timestamp
+            set BUILD_TIMESTAMP=%YR%%MN%%DD%_%HH%%MM%
+            set ARTIFACT_NAME=%APP_NAME%-Win64-portable-%BUILD_TIMESTAMP%
+            echo Artifact name: %ARTIFACT_NAME%
+            
+            echo BUILD_TIMESTAMP=%BUILD_TIMESTAMP% >> %GITHUB_ENV%
+            echo ARTIFACT_NAME=%ARTIFACT_NAME% >> %GITHUB_ENV%
+
+      - name: (8) Zip build
+        if: startsWith(github.ref, 'refs/tags/')
+        run:  |
+              set ZIP_FILE=${{ env.APP_NAME }}-${{ github.ref_name }}-Win64-portable.zip
+              echo ZIP filename: %ZIP_FILE%
+              echo ZIP_FILE=%ZIP_FILE% >> %GITHUB_ENV%
+              
               cd "%GITHUB_WORKSPACE%"
-              7z a ${{ env.TARGET_DIR }}.zip ${{ github.workspace }}\${{ env.TARGET_DIR }}\* -r 
+              7z a %ZIP_FILE% ${{ github.workspace }}\${{ env.TARGET_DIR }}\* -r 
               
               echo "Путь к архиву сборки:"
-              echo "%cd%\%TARGET_DIR%.zip"
+              echo "%cd%\%ZIP_FILE%"
 
-      - name: (8) Save build artifact
+      - name: (9) Save build artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.TARGET_DIR }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ github.workspace }}\${{ env.TARGET_DIR }}           
                 
-      - name: (9) Create GitHub Release
+      - name: (10) Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ env.TARGET_DIR }}.zip
+          files: ${{ env.ZIP_FILE }}
+          name: "${{ env.APP_NAME }}-${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}

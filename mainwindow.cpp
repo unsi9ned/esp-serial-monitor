@@ -4,6 +4,7 @@
 #include <QFileDialog>
 #include <QProcess>
 #include <QScrollBar>
+#include <QComboBox>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "version.h"
@@ -107,6 +108,13 @@ MainWindow::MainWindow(QWidget *parent) :
             SIGNAL(statusChanged(QString)),
             ui->statusBar,
             SLOT(showMessage(QString)));
+
+    //
+    // Активация поля ввода адреса смещения
+    //
+    connect(ui->cbxIDE,
+            SIGNAL(activated(int)),
+            SLOT(changeOffsetSpinboxState(int)));
 }
 
 MainWindow::~MainWindow()
@@ -164,7 +172,7 @@ void MainWindow::loadSettings()
         this->settings.close();
     }
 
-    for(int i = appSettings.length(); i < 5; i++)
+    for(int i = appSettings.length(); i < 10; i++)
     {
         appSettings.append("");
     }
@@ -173,12 +181,27 @@ void MainWindow::loadSettings()
     QString portSpeed = appSettings.at(1);
     QString chipName = appSettings.at(3);
     QString ideName = appSettings.at(4);
+    QString specChar = appSettings.at(5);
+
+    QString spiMode = appSettings.at(6);
+    QString spiSpeed = appSettings.at(7);
+    QString spiSize = appSettings.at(8);
+    QString offsetStr = appSettings.at(9);
+    quint32 offsetAddr = 0x0;
 
     portSpeed = portSpeed.isEmpty() ? "115200" : portSpeed;
     chipName = chipName.isEmpty() ? "ESP32" : chipName;
     ideName = ideName.isEmpty() ? "Arduino" : ideName;
+    specChar = specChar.isEmpty() ? "NONE" : specChar;
+
+    spiMode = spiMode.isEmpty() ? "QIO" : spiMode;
+    spiSpeed = spiSpeed.isEmpty() ? "80MHz" : spiSpeed;
+    spiSize = spiSize.isEmpty() ? "4MB" : spiSize;
+
+    offsetAddr = offsetStr.isEmpty() ? 0x0 : offsetStr.toUInt(nullptr, 16);
 
     ui->lineEditFirmware->setText(appSettings.at(2));
+    ui->spinBoxOffset->setEnabled(ideName.toLower() == "manual");
 
     for (int i = 0; i < ui->cbxChip->count(); i++)
     {
@@ -215,6 +238,44 @@ void MainWindow::loadSettings()
             break;
         }
     }
+
+    for(int i = 0; i < ui->comboBoxSpecialChars->count(); i++)
+    {
+        if(ui->comboBoxSpecialChars->itemText(i) == specChar)
+        {
+            ui->comboBoxSpecialChars->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    for(int i = 0; i < ui->cbxSpiMode->count(); i++)
+    {
+        if(ui->cbxSpiMode->itemText(i) == spiMode)
+        {
+            ui->cbxSpiMode->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    for(int i = 0; i < ui->cbxSpiSpeed->count(); i++)
+    {
+        if(ui->cbxSpiSpeed->itemText(i) == spiSpeed)
+        {
+            ui->cbxSpiSpeed->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    for(int i = 0; i < ui->cbxSpiSize->count(); i++)
+    {
+        if(ui->cbxSpiSize->itemText(i) == spiSize)
+        {
+            ui->cbxSpiSize->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    ui->spinBoxOffset->setValue(offsetAddr);
 }
 
 //------------------------------------------------------------------------------
@@ -233,6 +294,16 @@ void MainWindow::saveSettings()
         this->settings.write(ui->cbxChip->currentText().toLatin1().constData());
         this->settings.write("\r\n");
         this->settings.write(ui->cbxIDE->currentText().toLatin1().constData());
+        this->settings.write("\r\n");
+        this->settings.write(ui->comboBoxSpecialChars->currentText().toLatin1().constData());
+        this->settings.write("\r\n");
+        this->settings.write(ui->cbxSpiMode->currentText().toLatin1().constData());
+        this->settings.write("\r\n");
+        this->settings.write(ui->cbxSpiSpeed->currentText().toLatin1().constData());
+        this->settings.write("\r\n");
+        this->settings.write(ui->cbxSpiSize->currentText().toLatin1().constData());
+        this->settings.write("\r\n");
+        this->settings.write(QString("0x%1").arg(ui->spinBoxOffset->value(), 0, 16).toLatin1().constData());
         this->settings.write("\r\n");
         this->settings.close();
     }
@@ -261,15 +332,7 @@ void MainWindow::parseFlashArgs(QString &flashMode,
     QString baseName = ui->lineEditFirmware->text();
     QString firmwareDir;
 
-    int slashPos = baseName.lastIndexOf(QChar('/'));
-    int extensionBegin = baseName.lastIndexOf(QChar('.'));
-
-    slashPos = slashPos == -1 ? baseName.lastIndexOf(QChar('\\')) : slashPos;
-    slashPos = slashPos == -1 ? 0 : slashPos + 1;
-    extensionBegin = extensionBegin <= slashPos ? baseName.length() : extensionBegin;
-
-    firmwareDir = baseName.mid(0, slashPos);
-    baseName = baseName.mid(slashPos, extensionBegin - slashPos);
+    this->getFirmwareLocation(firmwareDir, baseName);
 
     if(ui->cbxIDE->currentText().toLower() == "espressif" ||
        ui->cbxIDE->currentText().toLower() == "arduino")
@@ -374,6 +437,94 @@ void MainWindow::parseFlashArgs(QString &flashMode,
 }
 
 //------------------------------------------------------------------------------
+// Обновление элементов формы, отвечающих за выбор режима программирования памяти
+//------------------------------------------------------------------------------
+void MainWindow::updateUiFlashMode(const QString &flashMode,
+                                   const QString &flashFreq,
+                                   const QString &flashSize)
+{
+    // Example:
+    // flashMode = {keep,qio,qout,dio,dout};
+    // flashFreq = {keep,80m,60m,48m,40m,30m,26m,24m,20m,16m,15m,12m};
+    // flashSize = {detect,keep,256KB,512KB,1MB,2MB,2MB-c1,4MB,4MB-c1,8MB,16MB,32MB,64MB,128MB};
+
+    for(auto i = 0; i < ui->cbxSpiMode->count(); i++)
+    {
+        QString mode = ui->cbxSpiMode->itemText(i);
+
+        if(mode.toLower() == flashMode)
+        {
+            ui->cbxSpiMode->setCurrentIndex(i);
+        }
+    }
+
+    for(auto i = 0; i < ui->cbxSpiSpeed->count(); i++)
+    {
+        QString freq = ui->cbxSpiSpeed->itemText(i);
+        QString freqArg = freq.mid(0, freq.indexOf("MHz")).toLower() + "m";
+
+        freqArg = freqArg == "26.7m" ? "26m" : freqArg;
+
+        if(freqArg == flashFreq)
+        {
+            ui->cbxSpiSpeed->setCurrentIndex(i);
+        }
+    }
+
+    for(auto i = 0; i < ui->cbxSpiSize->count(); i++)
+    {
+        QString size = ui->cbxSpiSize->itemText(i);
+
+        if(size == flashSize)
+        {
+            ui->cbxSpiSize->setCurrentIndex(i);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+// Считывает текст элементов формы, отвечающих за режим программирования памяти
+// и приводит его в формат esptool
+//------------------------------------------------------------------------------
+void MainWindow::getFlashMode(QString &flashMode,
+                              QString &flashFreq,
+                              QString &flashSize)
+{
+    QString mode = ui->cbxSpiMode->currentText();
+    QString speed = ui->cbxSpiSpeed->currentText();
+    QString size = ui->cbxSpiSize->currentText();
+
+    flashMode = mode.isEmpty() ? flashMode : mode.toLower();
+
+    if(!speed.isEmpty())
+    {
+        speed = speed.mid(0, speed.indexOf("MHz")).toLower() + "m";
+        speed = speed == "26.7m" ? "26m" : speed;
+        flashFreq = speed;
+    }
+
+    flashSize = size.isEmpty() ? flashSize : size;
+}
+
+//------------------------------------------------------------------------------
+// Определяет каталог прошивки и ее имя без расширения
+//------------------------------------------------------------------------------
+void MainWindow::getFirmwareLocation(QString &firmwareDir, QString &baseName)
+{
+    baseName = ui->lineEditFirmware->text();
+
+    int slashPos = baseName.lastIndexOf(QChar('/'));
+    int extensionBegin = baseName.lastIndexOf(QChar('.'));
+
+    slashPos = slashPos == -1 ? baseName.lastIndexOf(QChar('\\')) : slashPos;
+    slashPos = slashPos == -1 ? 0 : slashPos + 1;
+    extensionBegin = extensionBegin <= slashPos ? baseName.length() : extensionBegin;
+
+    firmwareDir = baseName.mid(0, slashPos);
+    baseName = baseName.mid(slashPos, extensionBegin - slashPos);
+}
+
+//------------------------------------------------------------------------------
 // Вывод таблицы разделов в окно логирования
 //------------------------------------------------------------------------------
 void MainWindow::printPartitionTable(const QList<PartitionInfo> &partitionTable,
@@ -456,23 +607,20 @@ QList<PartitionInfo> MainWindow::readPartitionTable()
     // Сначала из пути к прошивке выделяем каталог, где она находится
     // и название файла прошивки
     //
-    int slashPos = baseName.lastIndexOf(QChar('/'));
-    int extensionBegin = baseName.lastIndexOf(QChar('.'));
-
-    slashPos = slashPos == -1 ? baseName.lastIndexOf(QChar('\\')) : slashPos;
-    slashPos = slashPos == -1 ? 0 : slashPos + 1;
-    extensionBegin = extensionBegin <= slashPos ? baseName.length() : extensionBegin;
-
-    firmwareDir = baseName.mid(0, slashPos);
-    baseName = baseName.mid(slashPos, extensionBegin - slashPos);
+    this->getFirmwareLocation(firmwareDir, baseName);
 
     //
-    // Если проект собран в Espressif IDE, то CSV-файла таблицы разделов нет
+    // Если проект собран в Espressif IDE или PlatformIO, то CSV-файла таблицы разделов нет
     // и нам необходимо преобразовать таблицу разделов из BIN в CSV
     //
-    if(ui->cbxIDE->currentText().toLower() == "espressif" && QFile::exists(Paths::esp32part()))
+    if((ui->cbxIDE->currentText().toLower() == "espressif" ||
+        ui->cbxIDE->currentText().toLower() == "platformio") && QFile::exists(Paths::esp32part()))
     {
-        partitionFile = firmwareDir + Paths::espressifPartitionBin();
+        if(ui->cbxIDE->currentText().toLower() == "platformio")
+            partitionFile = firmwareDir + Paths::platformioPartitionBin();
+        else
+            partitionFile = firmwareDir + Paths::espressifPartitionBin();
+
         partitionFileCsv = Paths::tempPartitionTableCsv();
         args << partitionFile << partitionFileCsv;
 
@@ -822,10 +970,18 @@ void MainWindow::on_pushButtonSend_clicked()
 //------------------------------------------------------------------------------
 void MainWindow::on_pushButtonBrowse_clicked()
 {
+    QString firmwareDir, baseName;
     QStringList fileNames;
     QFileDialog dialog;
     dialog.setFileMode(QFileDialog::AnyFile);
     dialog.setNameFilter(tr("BIN (*.bin *.BIN)"));
+
+    this->getFirmwareLocation(firmwareDir, baseName);
+
+    if(!firmwareDir.isEmpty())
+    {
+        dialog.setDirectory(firmwareDir);
+    }
 
     if (dialog.exec())
     {
@@ -833,7 +989,27 @@ void MainWindow::on_pushButtonBrowse_clicked()
 
         if(fileNames.count())
         {
+            QString flashMode = "qio";
+            QString flashFreq = "80m";
+            QString flashSize = "4MB";
+            uint32_t bootloaderAddr = 0x1000;
+            uint32_t secBootloaderAddr = 0xe000;
+            uint32_t partTableAddr = 0x8000;
+            uint32_t factoryAddr = 0x10000;
+
             ui->lineEditFirmware->setText(fileNames.first());
+
+            this->parseFlashArgs(flashMode,
+                                 flashFreq,
+                                 flashSize,
+                                 bootloaderAddr,
+                                 partTableAddr,
+                                 factoryAddr,
+                                 secBootloaderAddr);
+
+            this->updateUiFlashMode(flashMode,
+                                    flashFreq,
+                                    flashSize);
         }
     }
 }
@@ -866,7 +1042,19 @@ void MainWindow::on_pushButtonBurn_clicked()
         qint64 bootloaderSize = 0;
         qint64 partTableSize = 0;
 
-        if(ui->cbxChip->currentText().toLower() == "esp32")
+        QString firmwareFile = ui->lineEditFirmware->text();
+        QString baseName = ui->lineEditFirmware->text();
+        QString firmwareDir;
+
+        //
+        // Сначала определяем каталог сборки проекта и BIN основной программы
+        //
+        this->getFirmwareLocation(firmwareDir, baseName);
+
+
+        if(ui->cbxChip->currentText().toLower() == "esp32" &&
+           ui->cbxIDE->currentText().toLower() != "merged bin" &&
+           ui->cbxIDE->currentText().toLower() != "manual")
         {
             /*
             esptool.exe
@@ -885,25 +1073,9 @@ void MainWindow::on_pushButtonBurn_clicked()
                     0xe000 boot_app0.bin
                     0x10000 TestESP32.bin
             */
-            QString baseName = ui->lineEditFirmware->text();
-            QString firmwareDir;
             QString bootloaderFile;
             QString partitionFile;
             QString bootApp0File;
-            QString firmwareFile = ui->lineEditFirmware->text();
-
-            //
-            // Сначала определяем каталог сборки проекта и BIN основной программы
-            //
-            int slashPos = baseName.lastIndexOf(QChar('/'));
-            int extensionBegin = baseName.lastIndexOf(QChar('.'));
-
-            slashPos = slashPos == -1 ? baseName.lastIndexOf(QChar('\\')) : slashPos;
-            slashPos = slashPos == -1 ? 0 : slashPos + 1;
-            extensionBegin = extensionBegin <= slashPos ? baseName.length() : extensionBegin;
-
-            firmwareDir = baseName.mid(0, slashPos);
-            baseName = baseName.mid(slashPos, extensionBegin - slashPos);
 
             //
             // Далее зная имя файла основной программы формирует имена файлов
@@ -919,6 +1091,11 @@ void MainWindow::on_pushButtonBurn_clicked()
                 bootloaderFile = firmwareDir + baseName + ".bootloader.bin";
                 partitionFile = firmwareDir + baseName + ".partitions.bin";
                 bootApp0File = Paths::arduinoSecondaryBootloader();
+            }
+            else if(ui->cbxIDE->currentText().toLower() == "platformio")
+            {
+                bootloaderFile = firmwareDir + Paths::platformioBootloader();
+                partitionFile = firmwareDir + Paths::platformioPartitionBin();
             }
             else
             {
@@ -964,6 +1141,10 @@ void MainWindow::on_pushButtonBurn_clicked()
                                  factoryAddr,
                                  secBootloaderAddr);
 
+            this->getFlashMode(flashMode,
+                               flashFreq,
+                               flashSize);
+
             args << "--flash_mode" << flashMode;
             args << "--flash_freq" << flashFreq;
             args << "--flash_size" << flashSize;
@@ -988,6 +1169,41 @@ void MainWindow::on_pushButtonBurn_clicked()
             args << QString("0x%1").arg(factoryAddr, 0, 16) << firmwareFile;
         }
         //
+        // Merged BIN - это уже готовый файл прошивки, содержащий в себе
+        // все части. Фактически это дамп памяти. Потому команда прошивки
+        // будет выглядеть проще
+        //
+        else if(ui->cbxChip->currentText().toLower() == "esp32" &&
+                (ui->cbxIDE->currentText().toLower() == "merged bin" ||
+                 ui->cbxIDE->currentText().toLower() == "manual"))
+        {
+            //
+            // Начинаем формировани команду для программирования
+            //
+            args << "--chip" << ui->cbxChip->currentText().toLower();
+            args << "--port" << ui->cbxPort->currentText();
+            args << "--baud" << ui->cbxFlashSpeed->currentText();
+            args << "--before" << "default_reset";
+            args << "--after" << "hard_reset";
+            args << "write_flash";
+            args << "-z";
+
+            this->getFlashMode(flashMode,
+                               flashFreq,
+                               flashSize);
+
+            args << "--flash_mode" << flashMode;
+            args << "--flash_freq" << flashFreq;
+            args << "--flash_size" << flashSize;
+
+            if(ui->cbxIDE->currentText().toLower() != "manual")
+                args << QString("0x%1").arg(0x0, 0, 16) << firmwareFile;
+            else
+            {
+                args << QString("0x%1").arg(ui->spinBoxOffset->value(), 0, 16) << firmwareFile;
+            }
+        }
+        //
         // Если программируем ESP8266, то среда программирование Arduino, Sloeber
         // формируют один единственный BIN-файл и нет необходимости прошивать
         // фрагменты прошивки по отдельности
@@ -1006,13 +1222,18 @@ void MainWindow::on_pushButtonBurn_clicked()
         // Вывод таблицы разделов на печать
         //
         ui->plainTextEdit->clear();
-        QList<PartitionInfo> partitionTable = this->readPartitionTable();
 
-        this->printPartitionTable(partitionTable,
-                                  bootloaderAddr,
-                                  bootloaderSize,
-                                  partTableAddr,
-                                  partTableSize);
+        if(ui->cbxIDE->currentText().toLower() != "merged bin" &&
+           ui->cbxIDE->currentText().toLower() != "manual")
+        {
+            QList<PartitionInfo> partitionTable = this->readPartitionTable();
+
+            this->printPartitionTable(partitionTable,
+                                      bootloaderAddr,
+                                      bootloaderSize,
+                                      partTableAddr,
+                                      partTableSize);
+        }
 
         //
         // Сброс сигналов DTR, RTS
@@ -1209,5 +1430,22 @@ void MainWindow::on_pushButtonErase_clicked()
 
             emit statusChanged("Flash erase process completed");
         });
+    }
+}
+
+//------------------------------------------------------------------------------
+// Активация поля ввода адреса при выборе ручного режима
+//------------------------------------------------------------------------------
+void MainWindow::changeOffsetSpinboxState(int i)
+{
+    QString ide = ui->cbxIDE->itemText(i);
+
+    if(ide.toLower() == "manual")
+    {
+        ui->spinBoxOffset->setEnabled(true);
+    }
+    else
+    {
+        ui->spinBoxOffset->setEnabled(false);
     }
 }
